@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工资秒级计算器</title>
+<style>
+  :root {
+    --gold: #f0c060;
+    --gold-light: #ffe9b0;
+    --gold-dark: #b8860b;
+    --bg: #0a0a0f;
+    --card-bg: rgba(20, 20, 40, 0.85);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* 动态星空背景 */
+  .stars {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+  }
+  .star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle var(--dur) ease-in-out infinite;
+    animation-delay: var(--delay);
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.8); }
+  }
+
+  /* 金色光晕背景 */
+  .bg-glow {
+    position: fixed;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(240,192,96,0.08) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none; z-index: 0;
+    animation: bgPulse 3s ease-in-out infinite;
+  }
+  @keyframes bgPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+    50% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  }
+
+  .bg-glow-2 {
+    position: fixed;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,180,50,0.06) 0%, transparent 70%);
+    top: 30%; left: 70%;
+    pointer-events: none; z-index: 0;
+    animation: bgPulse2 4s ease-in-out infinite;
+  }
+  @keyframes bgPulse2 {
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50% { transform: scale(1.5); opacity: 0.9; }
+  }
+
+  canvas#coinCanvas {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 100;
+  }
+
+  .container { position: relative; z-index: 10; }
+
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 28px;
+    padding: 48px 40px 36px;
+    text-align: center;
+    box-shadow:
+      0 24px 80px rgba(0,0,0,0.5),
+      0 0 0 1px rgba(240,192,96,0.08) inset,
+      0 0 120px rgba(240,192,96,0.05);
+    transition: box-shadow 0.3s;
+  }
+  .card.shaking {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97);
+  }
+  .card.golden {
+    box-shadow:
+      0 24px 80px rgba(0,0,0,0.5),
+      0 0 0 1px rgba(240,192,96,0.2) inset,
+      0 0 160px rgba(240,192,96,0.15);
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10% { transform: translateX(-6px) rotate(-0.5deg); }
+    20% { transform: translateX(6px) rotate(0.5deg); }
+    30% { transform: translateX(-8px) rotate(-0.5deg); }
+    40% { transform: translateX(8px) rotate(0.5deg); }
+    50% { transform: translateX(-5px); }
+    60% { transform: translateX(5px); }
+    70% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+    90% { transform: translateX(-1px); }
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 28px;
+    letter-spacing: 1px;
+  }
+
+  .input-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .input-group label {
+    font-size: 15px;
+    color: rgba(255,255,255,0.6);
+    white-space: nowrap;
+  }
+  .input-group input {
+    width: 200px;
+    padding: 14px 18px;
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.04);
+    color: var(--gold-light);
+    outline: none;
+    transition: all 0.3s;
+    letter-spacing: 1px;
+  }
+  .input-group input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 30px rgba(240,192,96,0.2);
+    background: rgba(255,255,255,0.07);
+  }
+  .input-group .unit {
+    font-size: 15px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* 每秒收入展示 */
+  .rate-display {
+    margin-bottom: 8px;
+  }
+  .rate-label {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .rate-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 1px;
+  }
+
+  /* 主计数器 */
+  .counter-section {
+    margin: 20px 0 28px;
+  }
+  .counter {
+    font-size: 72px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+    color: #fff;
+    letter-spacing: 2px;
+    text-shadow: 0 0 40px rgba(240,192,96,0.4);
+    transition: text-shadow 0.5s;
+    line-height: 1;
+  }
+  .counter.pulse {
+    text-shadow:
+      0 0 20px rgba(240,192,96,0.8),
+      0 0 60px rgba(240,192,96,0.5),
+      0 0 100px rgba(240,192,96,0.3),
+      0 0 160px rgba(240,192,96,0.15);
+  }
+  .counter .cents {
+    font-size: 36px;
+    color: rgba(255,255,255,0.5);
+  }
+  .counter-unit {
+    font-size: 16px;
+    color: rgba(255,255,255,0.35);
+    margin-top: 4px;
+    letter-spacing: 2px;
+  }
+
+  /* 10秒进度条 */
+  .progress-wrap {
+    margin-top: 8px;
+    position: relative;
+  }
+  .progress-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-light));
+    border-radius: 2px;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 12px rgba(240,192,96,0.5);
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+  .progress-label .countdown {
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  /* 撒金币提示 */
+  .coin-soon {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--gold);
+    opacity: 0;
+    transition: opacity 0.3s;
+    letter-spacing: 1px;
+    animation: none;
+  }
+  .coin-soon.visible {
+    opacity: 1;
+    animation: bounceHint 0.6s ease-in-out infinite;
+  }
+  @keyframes bounceHint {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* 粒子爆发点 */
+  .burst {
+    position: fixed;
+    pointer-events: none;
+    z-index: 99;
+  }
+  .burst-particle {
+    position: absolute;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: burstOut 0.8s ease-out forwards;
+  }
+  @keyframes burstOut {
+    0% { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+  }
+
+  @media (max-width: 520px) {
+    .card { padding: 32px 20px 28px; border-radius: 22px; }
+    .counter { font-size: 48px; }
+    .counter .cents { font-size: 24px; }
+    h1 { font-size: 22px; }
+    .input-group input { width: 140px; font-size: 18px; padding: 10px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 星空背景 -->
+<div class="stars" id="stars"></div>
+
+<!-- 背景光晕 -->
+<div class="bg-glow"></div>
+<div class="bg-glow-2"></div>
+
+<!-- 金币画布 -->
+<canvas id="coinCanvas"></canvas>
+
+<!-- 主界面 -->
+<div class="container">
+  <div class="card" id="card">
+    <h1>💰 工资秒级计算器</h1>
+    <p class="subtitle">你的每一秒，都在创造价值</p>
+
+    <div class="input-group">
+      <label for="salary">月薪</label>
+      <input type="number" id="salary" value="15000" min="0" step="100" placeholder="输入月薪">
+      <span class="unit">元/月</span>
+    </div>
+
+    <div class="rate-display">
+      <div class="rate-label">每秒收入</div>
+      <div class="rate-value" id="rateValue">¥0.0058</div>
+    </div>
+
+    <div class="counter-section">
+      <div class="counter" id="counter">
+        <span id="counterInt">0</span><span class="cents" id="counterDec">.0000</span>
+      </div>
+      <div class="counter-unit">元 已累计</div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-label">
+        <span>下次撒金币</span>
+        <span class="countdown" id="countdown">10.0s</span>
+      </div>
+    </div>
+    <div class="coin-soon" id="coinSoon">✨ 金币雨即将来临！</div>
+  </div>
+</div>
+
+<script>
+// ============ 星空背景 ============
+(function createStars() {
+  const container = document.getElementById('stars');
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 120; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    const size = Math.random() * 2.5 + 0.8;
+    star.style.cssText = `
+      width:${size}px; height:${size}px;
+      top:${Math.random()*100}%; left:${Math.random()*100}%;
+      --dur:${Math.random()*3+2}s;
+      --delay:${Math.random()*4}s;
+    `;
+    frag.appendChild(star);
+  }
+  container.appendChild(frag);
+})();
+
+// ============ 主逻辑 ============
+const salaryInput = document.getElementById('salary');
+const rateValue = document.getElementById('rateValue');
+const counterInt = document.getElementById('counterInt');
+const counterDec = document.getElementById('counterDec');
+const counter = document.getElementById('counter');
+const progressFill = document.getElementById('progressFill');
+const countdown = document.getElementById('countdown');
+const coinSoon = document.getElementById('coinSoon');
+const card = document.getElementById('card');
+const canvas = document.getElementById('coinCanvas');
+const ctx = canvas.getContext('2d');
+
+let monthlySalary = parseFloat(salaryInput.value) || 15000;
+let perSecond = monthlySalary / (30 * 24 * 3600);
+let accumulated = 0;
+let lastTick = performance.now();
+let cycleStart = performance.now();
+const CYCLE_DURATION = 10000; // 10秒一个周期
+let coins = [];
+let particles = [];
+
+// ============ Canvas 初始化 ============
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ============ 金币类 ============
+class Coin {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 8;
+    this.vy = -(Math.random() * 14 + 6);
+    this.gravity = 0.35 + Math.random() * 0.25;
+    this.rotation = Math.random() * Math.PI * 2;
+    this.rotSpeed = (Math.random() - 0.5) * 0.25;
+    this.size = 18 + Math.random() * 18;
+    this.opacity = 1;
+    this.fadeDelay = 0;
+    this.bounced = false;
+    this.bounceCount = 0;
+  }
+
+  update() {
+    this.vy += this.gravity;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.rotation += this.rotSpeed;
+
+    // Bounce off bottom
+    if (this.y > canvas.height - this.size && this.bounceCount < 2) {
+      this.y = canvas.height - this.size;
+      this.vy *= -0.4;
+      this.vx *= 0.7;
+      this.bounceCount++;
+    }
+
+    // Start fading after some time
+    if (this.y > canvas.height * 0.7) {
+      this.fadeDelay++;
+    }
+    if (this.fadeDelay > 40) {
+      this.opacity -= 0.02;
+    }
+
+    return this.opacity > 0 && this.y < canvas.height + 100;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+
+    const s = this.size / 2;
+
+    // Glow
+    const glow = ctx.createRadialGradient(0, 0, s * 0.1, 0, 0, s * 1.4);
+    glow.addColorStop(0, 'rgba(255,220,120,0.5)');
+    glow.addColorStop(1, 'rgba(240,192,96,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Coin body
+    const grad = ctx.createLinearGradient(-s, -s, s, s);
+    grad.addColorStop(0, '#ffe9b0');
+    grad.addColorStop(0.3, '#f0c060');
+    grad.addColorStop(0.6, '#d4a030');
+    grad.addColorStop(1, '#b8860b');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rim
+    ctx.strokeStyle = 'rgba(180,130,30,0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Inner ring
+    ctx.strokeStyle = 'rgba(200,150,50,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // ¥ symbol
+    ctx.fillStyle = 'rgba(160,100,20,0.8)';
+    ctx.font = `bold ${s * 0.85}px "PingFang SC","Microsoft YaHei",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('¥', 0, 1);
+
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.arc(-s * 0.25, -s * 0.25, s * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+// ============ 金色粒子（撒金币时的光点） ============
+class Sparkle {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 10;
+    this.vy = (Math.random() - 0.5) * 10 - Math.random() * 6;
+    this.life = 1;
+    this.decay = 0.015 + Math.random() * 0.04;
+    this.size = 2 + Math.random() * 4;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.05;
+    this.life -= this.decay;
+    return this.life > 0;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = this.life;
+    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.4, '#ffe9b0');
+    grad.addColorStop(1, 'rgba(240,192,96,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ============ 撒金币！ ============
+function showerCoins() {
+  const count = 35 + Math.floor(Math.random() * 25);
+  for (let i = 0; i < count; i++) {
+    const x = Math.random() * canvas.width;
+    const y = -(Math.random() * 300 + 50);
+    coins.push(new Coin(x, y));
+  }
+
+  // 粒子爆发
+  for (let i = 0; i < 80; i++) {
+    const cx = canvas.width / 2 + (Math.random() - 0.5) * 400;
+    const cy = canvas.height / 2 + (Math.random() - 0.5) * 200;
+    particles.push(new Sparkle(cx, cy));
+  }
+
+  // 屏幕震动
+  card.classList.add('shaking', 'golden');
+  setTimeout(() => card.classList.remove('shaking'), 500);
+  setTimeout(() => card.classList.remove('golden'), 2000);
+
+  // 计数器光晕
+  counter.classList.add('pulse');
+  setTimeout(() => counter.classList.remove('pulse'), 1200);
+
+  // 隐藏提示
+  coinSoon.classList.remove('visible');
+
+  // 播放提示音效 (视觉替代: 闪光)
+  const flash = document.createElement('div');
+  flash.style.cssText = `
+    position:fixed;inset:0;z-index:98;pointer-events:none;
+    background:radial-gradient(circle,rgba(255,200,80,0.15) 0%,transparent 70%);
+    animation:flashOut 0.8s ease-out forwards;
+  `;
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 800);
+}
+
+// 添加闪光动画样式
+const flashStyle = document.createElement('style');
+flashStyle.textContent = `
+  @keyframes flashOut {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+`;
+document.head.appendChild(flashStyle);
+
+// ============ 卡片中心爆发粒子（DOM） ============
+function burstAtCard() {
+  const rect = card.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const container = document.createElement('div');
+  container.className = 'burst';
+  container.style.left = cx + 'px';
+  container.style.top = cy + 'px';
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'burst-particle';
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 40 + Math.random() * 100;
+    p.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--ty', Math.sin(angle) * dist + 'px');
+    p.style.animationDuration = (0.5 + Math.random() * 0.6) + 's';
+    frag.appendChild(p);
+  }
+  container.appendChild(frag);
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 1000);
+}
+
+// ============ 渲染循环 ============
+function render(timestamp) {
+  // 更新累计金额
+  const dt = Math.min((timestamp - lastTick) / 1000, 0.2); // cap to avoid jumps
+  lastTick = timestamp;
+  accumulated += perSecond * dt;
+
+  // 更新显示
+  const totalCents = Math.floor(accumulated * 10000);
+  const intPart = Math.floor(totalCents / 10000);
+  const decPart = totalCents % 10000;
+  counterInt.textContent = intPart.toLocaleString('en-US');
+  counterDec.textContent = '.' + String(decPart).padStart(4, '0');
+
+  // 10秒周期进度
+  const elapsed = (timestamp - cycleStart) % CYCLE_DURATION;
+  const progress = elapsed / CYCLE_DURATION;
+  progressFill.style.width = (progress * 100) + '%';
+  countdown.textContent = ((CYCLE_DURATION - elapsed) / 1000).toFixed(1) + 's';
+
+  // 最后1.5秒提示
+  if (elapsed > CYCLE_DURATION - 1500) {
+    coinSoon.classList.add('visible');
+  }
+
+  // 整10秒触发撒金币
+  if (elapsed < dt * 1000 + 16) {
+    // 新周期开始
+    showerCoins();
+    burstAtCard();
+  }
+
+  // 更新和绘制金币
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  coins = coins.filter(c => c.update());
+  coins.forEach(c => c.draw(ctx));
+
+  // 更新和绘制粒子
+  particles = particles.filter(p => p.update());
+  particles.forEach(p => p.draw(ctx));
+
+  requestAnimationFrame(render);
+}
+
+// ============ 输入处理 ============
+salaryInput.addEventListener('input', () => {
+  monthlySalary = parseFloat(salaryInput.value) || 0;
+  perSecond = monthlySalary / (30 * 24 * 3600);
+  rateValue.textContent = '¥' + perSecond.toFixed(4);
+  accumulated = 0;
+  cycleStart = performance.now();
+});
+
+// 初始显示
+rateValue.textContent = '¥' + perSecond.toFixed(4);
+
+// ============ 启动 ============
+lastTick = performance.now();
+cycleStart = performance.now();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
